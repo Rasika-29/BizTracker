@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Inventory - BizTracker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Inventory</h1>
+  <form id="productForm">
+    <input type="text" id="name" placeholder="Product Name" required>
+    <input type="number" id="stock" placeholder="Stock" required>
+    <input type="number" id="price" placeholder="Price (₹)" required>
+    <button type="submit">Add Product</button>
+  </form>
+  <table id="inventoryTable">
+    <thead>
+      <tr>
+        <th>Name</th><th>Stock</th><th>Price</th><th>Action</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <a href="index.html">← Back to Dashboard</a>
+  <script src="script.js"></script>
+</body>
+</html>
