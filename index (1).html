@@ -1,3 +1,20 @@
+<?php 
+include 'db.php'; 
+
+// Fetch total number of products
+$total_products_result = $conn->query("SELECT COUNT(*) AS total_products FROM products");
+$total_products = $total_products_result->fetch_assoc()['total_products'];
+
+// Fetch total sales (sum of total_price in sales)
+$total_sales_result = $conn->query("SELECT SUM(total_price) AS total_sales FROM sales");
+$total_sales = $total_sales_result->fetch_assoc()['total_sales'];
+
+// Fetch products with low stock (e.g., stock < 5)
+$low_stock_threshold = 5;
+$low_stock_result = $conn->query("SELECT COUNT(*) AS low_stock_products FROM products WHERE quantity < $low_stock_threshold");
+$low_stock_products = $low_stock_result->fetch_assoc()['low_stock_products'];
+
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
