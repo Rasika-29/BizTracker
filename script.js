@@ -1,147 +1,123 @@
-// ===== LocalStorage Utilities =====
-function getProducts() {
-    return JSON.parse(localStorage.getItem('products') || '[]');
-  }
-  
-  function saveProducts(products) {
-    localStorage.setItem('products', JSON.stringify(products));
-  }
-  
-  function getSales() {
-    return JSON.parse(localStorage.getItem('sales') || '[]');
-  }
-  
-  function saveSales(sales) {
-    localStorage.setItem('sales', JSON.stringify(sales));
-  }
-  
-  // ===== Inventory Page Logic =====
-  const productForm = document.getElementById('productForm');
-  const inventoryTable = document.getElementById('inventoryTable')?.querySelector('tbody');
-  
-  if (productForm) {
-    productForm.onsubmit = (e) => {
-      e.preventDefault();
-      const name = document.getElementById('name').value.trim();
-      const stock = parseInt(document.getElementById('stock').value);
-      const price = parseFloat(document.getElementById('price').value);
-      if (name && !isNaN(stock) && !isNaN(price)) {
-        const products = getProducts();
-        products.push({ id: Date.now(), name, stock, price });
-        saveProducts(products);
+// ===== Inventory Page Logic =====
+const productForm = document.getElementById('productForm');
+const inventoryTable = document.getElementById('inventoryTable')?.querySelector('tbody');
+
+if (productForm) {
+  productForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('name').value.trim();
+    const stock = parseInt(document.getElementById('stock').value);
+    const price = parseFloat(document.getElementById('price').value);
+
+    if (name && !isNaN(stock) && !isNaN(price)) {
+      try {
+        const response = await fetch('server.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            'add_product': true,
+            'name': name,
+            'stock': stock,
+            'price': price
+          })
+        });
+
+        const data = await response.text();
+        alert(data);
+
         productForm.reset();
         renderInventory();
+      } catch (err) {
+        alert('Failed to add product. Please try again.');
+        console.error(err);
       }
-    };
-  }
-  
-  function renderInventory() {
-    if (!inventoryTable) return;
+    } else {
+      alert("Please fill in valid product details.");
+    }
+  };
+}
+
+async function renderInventory() {
+  if (!inventoryTable) return;
+  try {
+    const response = await fetch('server.php?get_products=true');
+    const products = await response.json();
+
     inventoryTable.innerHTML = '';
-    const products = getProducts();
     products.forEach(product => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${product.name}</td>
-        <td>${product.stock}</td>
-        <td>₹${product.price.toFixed(2)}</td>
-        <td><button onclick="deleteProduct(${product.id})">Delete</button></td>
+        <td>${product.quantity}</td>
+        <td>₹${parseFloat(product.price).toFixed(2)}</td>
+        <td><button class="delete-btn" data-id="${product.id}">❌ Delete</button></td>
       `;
       inventoryTable.appendChild(tr);
     });
-  }
-  
-  function deleteProduct(id) {
-    const products = getProducts().filter(p => p.id !== id);
-    saveProducts(products);
-    renderInventory();
-  }
-  
-  // ===== Dashboard Page Logic =====
-  function updateDashboard() {
-    const products = getProducts();
-    const sales = getSales();
-  
-    const productCount = products.length;
-    const totalSales = sales.reduce((sum, sale) => sum + sale.amount, 0);
-    const lowStock = products.filter(p => p.stock <= 5).length;
-  
-    document.getElementById('productCount').textContent = productCount;
-    document.getElementById('totalSales').textContent = totalSales.toFixed(2);
-    document.getElementById('lowStockCount').textContent = lowStock;
-  }
-  
-  // ===== Sales Page Logic =====
-  const salesForm = document.getElementById('salesForm');
-  const productSelect = document.getElementById('productSelect');
-  const salesList = document.getElementById('salesList');
-  
-  if (salesForm) {
-    populateProductOptions();
-  
-    salesForm.onsubmit = (e) => {
-      e.preventDefault();
-      const productId = parseInt(productSelect.value);
-      const quantity = parseInt(document.getElementById('quantity').value);
-      if (!isNaN(productId) && !isNaN(quantity)) {
-        let products = getProducts();
-        const product = products.find(p => p.id === productId);
-        if (product && product.stock >= quantity) {
-          product.stock -= quantity;
-          saveProducts(products);
-  
-          const sale = {
-            id: Date.now(),
-            productName: product.name,
-            quantity,
-            amount: quantity * product.price,
-            date: new Date().toLocaleString()
-          };
-  
-          const sales = getSales();
-          sales.push(sale);
-          saveSales(sales);
-          salesForm.reset();
-          populateProductOptions();
-          renderSales();
-        } else {
-          alert("Insufficient stock!");
+
+    // Attach delete event to all delete buttons
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', async function () {
+        const id = this.getAttribute('data-id');
+        if (confirm('Are you sure you want to delete this product?')) {
+          await deleteProduct(id);
         }
-      }
-    };
-  }
-  
-  function populateProductOptions() {
-    if (!productSelect) return;
-    productSelect.innerHTML = '';
-    const products = getProducts();
-    products.forEach(p => {
-      const option = document.createElement('option');
-      option.value = p.id;
-      option.textContent = `${p.name} (Stock: ${p.stock})`;
-      productSelect.appendChild(option);
+      });
     });
+
+  } catch (err) {
+    console.error("Error fetching products:", err);
+    inventoryTable.innerHTML = '<tr><td colspan="4">Error loading inventory</td></tr>';
   }
-  
-  function renderSales() {
-    if (!salesList) return;
-    const sales = getSales();
-    salesList.innerHTML = '';
-    sales.reverse().forEach(sale => {
-      const li = document.createElement('li');
-      li.textContent = `${sale.date} - Sold ${sale.quantity} x ${sale.productName} for ₹${sale.amount.toFixed(2)}`;
-      salesList.appendChild(li);
+}
+
+async function deleteProduct(id) {
+  try {
+    const res = await fetch(`server.php?delete_product=true&id=${id}`);
+    const msg = await res.text();
+    alert(msg);
+    renderInventory();
+  } catch (err) {
+    alert('Failed to delete product. Please try again.');
+    console.error(err);
+  }
+}
+
+// ===== Sales History Page Logic =====
+const salesHistoryTable = document.getElementById('salesHistoryTable')?.querySelector('tbody');
+
+// Function to render the sales history
+async function renderSalesHistory() {
+  if (!salesHistoryTable) return;
+
+  try {
+    const response = await fetch('server.php?get_sales=true');
+    const sales = await response.json();
+
+    // Clear the existing table body
+    salesHistoryTable.innerHTML = '';
+
+    // Loop through the sales data and populate the table rows
+    sales.forEach(sale => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${sale.product_name}</td>
+        <td>${sale.quantity_sold}</td>
+        <td>₹${parseFloat(sale.total_price).toFixed(2)}</td>
+        <td>${new Date(sale.sale_date).toLocaleString()}</td>
+      `;
+      salesHistoryTable.appendChild(tr);
     });
+  } catch (err) {
+    console.error("Error fetching sales data:", err);
+    salesHistoryTable.innerHTML = '<tr><td colspan="4">Error loading sales history</td></tr>';
   }
-  
-  // ===== Initialize Based on Page =====
-  window.onload = () => {
-    if (document.title.includes('Inventory')) {
-      renderInventory();
-    } else if (document.title.includes('Sales')) {
-      renderSales();
-    } else if (document.title.includes('Dashboard')) {
-      updateDashboard();
-    }
-  };
-  
+}
+
+// Call the function to render the sales history when the page loads
+window.onload = function() {
+  renderInventory(); // Ensure inventory is loaded
+  renderSalesHistory(); // Fetch and display sales history
+};
